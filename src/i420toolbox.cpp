@@ -32,14 +32,15 @@ int32_t main(int32_t argc, char **argv) {
     if ( (0 == commandlineArguments.count("in")) ||
          (0 == commandlineArguments.count("out")) ) {
         std::cerr << argv[0] << " waits on a shared memory containing an image in I420 format to apply image operations resulting into two corresponding images in I420 and ARGB format in two other shared memory areas." << std::endl;
-        std::cerr << "Usage:   " << argv[0] << " --in=<name of shared memory for the I420 image> --in.width=<width> --in.height=<height> --out=<name of shared memory to be created for the I420 image> [--rotate=<0,90,180,270>] [--verbose]" << std::endl;
+        std::cerr << "Usage:   " << argv[0] << " --in=<name of shared memory for the I420 image> --in.width=<width> --in.height=<height> --out=<name of shared memory to be created for the I420 image> [--flip] [--verbose]" << std::endl;
         std::cerr << "         --in:        name of the shared memory area containing the I420 image" << std::endl;
         std::cerr << "         --out:       name of the shared memory area to be created for the I420 image" << std::endl;
         std::cerr << "         --out.argb:  name of the shared memory area to be created for the ARGB image (default: value from --out + '.argb')" << std::endl;
         std::cerr << "         --in.width:  width of the input image" << std::endl;
         std::cerr << "         --in.height: height of the input image" << std::endl;
+        std::cerr << "         --flip:      rotate image by 180 degrees" << std::endl;
         std::cerr << "         --verbose:   display output image" << std::endl;
-        std::cerr << "Example: " << argv[0] << " --in=img.argb --width=640 --height=480 --argb --out=imgout.i420 --verbose" << std::endl;
+        std::cerr << "Example: " << argv[0] << " --in=video0.i420 --in.width=640 --in.height=480 --flip --out=imgout.i420 --verbose" << std::endl;
     }
     else {
         const std::string IN{commandlineArguments["in"]};
@@ -49,10 +50,7 @@ int32_t main(int32_t argc, char **argv) {
         const uint32_t IN_HEIGHT{static_cast<uint32_t>(std::stoi(commandlineArguments["in.height"]))};
         const uint32_t OUT_WIDTH{static_cast<uint32_t>(std::stoi(commandlineArguments["in.width"]))};
         const uint32_t OUT_HEIGHT{static_cast<uint32_t>(std::stoi(commandlineArguments["in.height"]))};
-        uint32_t ROTATE{(commandlineArguments.count("rotate") != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["rotate"])) : 0};
-        if ( (ROTATE != 0) && (ROTATE != 90) && (ROTATE != 180) && (ROTATE != 270) ) {
-            ROTATE = 0;
-        }
+        const uint32_t ROTATE{(commandlineArguments.count("flip") != 0) ? 180u : 0u};
         const bool VERBOSE{commandlineArguments.count("verbose") != 0};
 
         std::unique_ptr<cluon::SharedMemory> sharedMemoryIN(new cluon::SharedMemory{IN});
