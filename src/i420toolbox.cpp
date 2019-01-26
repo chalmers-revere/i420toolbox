@@ -155,33 +155,39 @@ int32_t main(int32_t argc, char **argv) {
                 sharedMemoryOUT_I420->lock();
                 sharedMemoryOUT_I420->setTimeStamp(sampleTimeStamp);
                 {
-                    libyuv::ConvertToI420(reinterpret_cast<uint8_t*>(sharedMemoryIN->data()), IN_WIDTH * IN_HEIGHT * 3/2 /* 3/2*IN_WIDTH for I420*/,
+                    if ( 0 < (TEMP_WIDTH * TEMP_HEIGHT) ) {
+                        // If the image shall be scaled, transform the flipping/cropping operation first and then, render the resulting scaled image into the output area.
+                        sharedMemoryTEMP_I420->lock();
+                        libyuv::ConvertToI420(reinterpret_cast<uint8_t*>(sharedMemoryIN->data()), IN_WIDTH * IN_HEIGHT * 3/2 /* 3/2*IN_WIDTH for I420*/,
+                                              reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()), TEMP_WIDTH,
+                                              reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()+(TEMP_WIDTH * TEMP_HEIGHT)), TEMP_WIDTH/2,
+                                              reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()+(TEMP_WIDTH * TEMP_HEIGHT + ((TEMP_WIDTH * TEMP_HEIGHT) >> 2))), TEMP_WIDTH/2,
+                                              CROP_X, CROP_Y,
+                                              IN_WIDTH, IN_HEIGHT,
+                                              CROP_WIDTH, CROP_HEIGHT,
+                                              static_cast<libyuv::RotationMode>(ROTATE), FOURCC('I', '4', '2', '0'));
+
+                        libyuv::I420Scale(reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()), TEMP_WIDTH,
+                                          reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()+(TEMP_WIDTH * TEMP_HEIGHT)), TEMP_WIDTH/2,
+                                          reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()+(TEMP_WIDTH * TEMP_HEIGHT + ((TEMP_WIDTH * TEMP_HEIGHT) >> 2))), TEMP_WIDTH/2,
+                                          TEMP_WIDTH, TEMP_HEIGHT,
                                           reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()), FINAL_WIDTH,
                                           reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT)), FINAL_WIDTH/2,
                                           reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT + ((FINAL_WIDTH * FINAL_HEIGHT) >> 2))), FINAL_WIDTH/2,
-                                          CROP_X, CROP_Y,
-                                          IN_WIDTH, IN_HEIGHT,
-                                          CROP_WIDTH, CROP_HEIGHT,
-                                          static_cast<libyuv::RotationMode>(ROTATE), FOURCC('I', '4', '2', '0'));
-/*
-int I420Scale(const uint8_t* src_y,
-  int src_stride_y,
-  const uint8_t* src_u,
-  int src_stride_u,
-  const uint8_t* src_v,
-  int src_stride_v,
-  int src_width,
-  int src_height,
-  uint8_t* dst_y,
-  int dst_stride_y,
-  uint8_t* dst_u,
-  int dst_stride_u,
-  uint8_t* dst_v,
-  int dst_stride_v,
-  int dst_width,
-  int dst_height,
-  enum FilterMode filtering);
-*/
+                                          FINAL_WIDTH, FINAL_HEIGHT,
+                                          libyuv::kFilterNone);
+                        sharedMemoryTEMP_I420->unlock();
+                    }
+                    else {
+                        libyuv::ConvertToI420(reinterpret_cast<uint8_t*>(sharedMemoryIN->data()), IN_WIDTH * IN_HEIGHT * 3/2 /* 3/2*IN_WIDTH for I420*/,
+                                              reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()), FINAL_WIDTH,
+                                              reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT)), FINAL_WIDTH/2,
+                                              reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT + ((FINAL_WIDTH * FINAL_HEIGHT) >> 2))), FINAL_WIDTH/2,
+                                              CROP_X, CROP_Y,
+                                              IN_WIDTH, IN_HEIGHT,
+                                              CROP_WIDTH, CROP_HEIGHT,
+                                              static_cast<libyuv::RotationMode>(ROTATE), FOURCC('I', '4', '2', '0'));
+                    }
 
                     sharedMemoryOUT_ARGB->lock();
                     sharedMemoryOUT_ARGB->setTimeStamp(sampleTimeStamp);
