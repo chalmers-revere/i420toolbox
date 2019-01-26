@@ -29,17 +29,30 @@
 int32_t main(int32_t argc, char **argv) {
     int32_t retCode{1};
     auto commandlineArguments = cluon::getCommandlineArguments(argc, argv);
+    auto cropCounter{
+        commandlineArguments.count("crop.x") +
+        commandlineArguments.count("crop.y") +
+        commandlineArguments.count("crop.width") +
+        commandlineArguments.count("crop.height")
+    };
     if ( (0 == commandlineArguments.count("in")) ||
-         (0 == commandlineArguments.count("out")) ) {
+         (0 == commandlineArguments.count("in.width")) ||
+         (0 == commandlineArguments.count("in.height")) ||
+         (0 == commandlineArguments.count("out")) ||
+         ( (0 != cropCounter) && (4 != cropCounter) ) ) {
         std::cerr << argv[0] << " waits on a shared memory containing an image in I420 format to apply image operations resulting into two corresponding images in I420 and ARGB format in two other shared memory areas." << std::endl;
         std::cerr << "Usage:   " << argv[0] << " --in=<name of shared memory for the I420 image> --in.width=<width> --in.height=<height> --out=<name of shared memory to be created for the I420 image> [--flip] [--verbose]" << std::endl;
-        std::cerr << "         --in:        name of the shared memory area containing the I420 image" << std::endl;
-        std::cerr << "         --out:       name of the shared memory area to be created for the I420 image" << std::endl;
-        std::cerr << "         --out.argb:  name of the shared memory area to be created for the ARGB image (default: value from --out + '.argb')" << std::endl;
-        std::cerr << "         --in.width:  width of the input image" << std::endl;
-        std::cerr << "         --in.height: height of the input image" << std::endl;
-        std::cerr << "         --flip:      rotate image by 180 degrees" << std::endl;
-        std::cerr << "         --verbose:   display output image" << std::endl;
+        std::cerr << "         --in:         name of the shared memory area containing the I420 image" << std::endl;
+        std::cerr << "         --out:        name of the shared memory area to be created for the I420 image" << std::endl;
+        std::cerr << "         --out.argb:   name of the shared memory area to be created for the ARGB image (default: value from --out + '.argb')" << std::endl;
+        std::cerr << "         --in.width:    width of the input image" << std::endl;
+        std::cerr << "         --in.height:   height of the input image" << std::endl;
+        std::cerr << "         --crop.x:      crop this area from the input image (x for top left)" << std::endl;
+        std::cerr << "         --crop.y:      crop this area from the input image (y for top left)" << std::endl;
+        std::cerr << "         --crop.width:  crop this area from the input image (width)" << std::endl;
+        std::cerr << "         --crop.height: crop this area from the input image (height)" << std::endl;
+        std::cerr << "         --flip:        rotate image by 180 degrees" << std::endl;
+        std::cerr << "         --verbose:     display output image" << std::endl;
         std::cerr << "Example: " << argv[0] << " --in=video0.i420 --in.width=640 --in.height=480 --flip --out=imgout.i420 --verbose" << std::endl;
     }
     else {
@@ -48,8 +61,12 @@ int32_t main(int32_t argc, char **argv) {
         std::string OUT_ARGB{(commandlineArguments.count("out.argb") != 0) ? commandlineArguments["out.argb"] : (OUT + ".argb")};
         const uint32_t IN_WIDTH{static_cast<uint32_t>(std::stoi(commandlineArguments["in.width"]))};
         const uint32_t IN_HEIGHT{static_cast<uint32_t>(std::stoi(commandlineArguments["in.height"]))};
-        const uint32_t OUT_WIDTH{static_cast<uint32_t>(std::stoi(commandlineArguments["in.width"]))};
-        const uint32_t OUT_HEIGHT{static_cast<uint32_t>(std::stoi(commandlineArguments["in.height"]))};
+        const uint32_t CROP_X{(commandlineArguments.count("crop.x") != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["crop.x"])) : 0u};
+        const uint32_t CROP_Y{(commandlineArguments.count("crop.y") != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["crop.y"])) : 0u};
+        const uint32_t CROP_WIDTH{(commandlineArguments.count("crop.width") != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["crop.width"])) : IN_WIDTH};
+        const uint32_t CROP_HEIGHT{(commandlineArguments.count("crop.height") != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["crop.height"])) : IN_HEIGHT};
+        const uint32_t OUT_WIDTH{CROP_WIDTH};
+        const uint32_t OUT_HEIGHT{CROP_HEIGHT};
         const uint32_t ROTATE{(commandlineArguments.count("flip") != 0) ? 180u : 0u};
         const bool VERBOSE{commandlineArguments.count("verbose") != 0};
 
@@ -96,30 +113,11 @@ int32_t main(int32_t argc, char **argv) {
                                                       reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()), OUT_WIDTH,
                                                       reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(OUT_WIDTH * OUT_HEIGHT)), OUT_WIDTH/2,
                                                       reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(OUT_WIDTH * OUT_HEIGHT + ((OUT_WIDTH * OUT_HEIGHT) >> 2))), OUT_WIDTH/2,
-                                                      0, 0,
+                                                      CROP_X, CROP_Y,
                                                       IN_WIDTH, IN_HEIGHT,
-                                                      OUT_WIDTH, OUT_HEIGHT,
+                                                      CROP_WIDTH, CROP_HEIGHT,
                                                       static_cast<libyuv::RotationMode>(ROTATE), FOURCC('I', '4', '2', '0'));
 
-/*
-LIBYUV_API
-int ConvertToI420(const uint8_t* sample,
-                  size_t sample_size,
-                  uint8_t* dst_y,
-                  int dst_stride_y,
-                  uint8_t* dst_u,
-                  int dst_stride_u,
-                  uint8_t* dst_v,
-                  int dst_stride_v,
-                  int crop_x,
-                  int crop_y,
-                  int src_width,
-                  int src_height,
-                  int crop_width,
-                  int crop_height,
-                  enum RotationMode rotation,
-                  uint32_t fourcc);
-*/
                                 sharedMemoryOUT_ARGB->lock();
                                 sharedMemoryOUT_ARGB->setTimeStamp(sampleTimeStamp);
                                 {

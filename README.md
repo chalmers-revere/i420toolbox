@@ -50,13 +50,13 @@ file specifies the use of `ipc:host`. The folder `/tmp` is shared into the Docke
 container to provide tokens describing the shared memory areas.
 The parameters to the application are:
 
-        std::cerr << "         --in:        name of the shared memory area containing the I420 image" << std::endl;
-        std::cerr << "         --out:       name of the shared memory area to be created for the I420 image" << std::endl;
-        std::cerr << "         --out.argb:  name of the shared memory area to be created for the ARGB image (default: value from --out + '.argb')" << std::endl;
-        std::cerr << "         --in.width:  width of the input image" << std::endl;
-        std::cerr << "         --in.height: height of the input image" << std::endl;
-        std::cerr << "         --flip:      rotate image by 180 degrees" << std::endl;
-        std::cerr << "         --verbose:   display output image" << std::endl;
+        std::cerr << "         --in:        name of the shared memory area containing the I420 image
+        std::cerr << "         --out:       name of the shared memory area to be created for the I420 image
+        std::cerr << "         --out.argb:  name of the shared memory area to be created for the ARGB image (default: value from --out + '.argb')
+        std::cerr << "         --in.width:  width of the input image
+        std::cerr << "         --in.height: height of the input image
+        std::cerr << "         --flip:      rotate image by 180 degrees
+        std::cerr << "         --verbose:   display output image
 
 
 * `--in`: Name of the shared memory area containing the I420 image
@@ -65,6 +65,10 @@ The parameters to the application are:
 * `--in.width`: Width of the input image
 * `--in.height`: Height of the input image
 * `--flip`: Rotate the input image by 180 degrees
+* `--crop.x`: Crop this area from the input image (x for top left)
+* `--crop.y`: Crop this area from the input image (y for top left)
+* `--crop.width`: Crop this area from the input image (width)
+* `--crop.height`: Crop this area from the input image (height)
 * `--verbose`: Display the resulting output image to screen (requires X11; run `xhost +` to allow access to you X11 server)
 
 
