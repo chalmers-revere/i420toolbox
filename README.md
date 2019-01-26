@@ -1,8 +1,8 @@
-## Microservice to transform an input image in (A)RGB/(A)BGR format to I420
+## Microservice with tools to transform an input image in I420 format to two images in I420 and ARGB format
 
-This repository provides source code to transform an input image in (A)RGB/(A)BGR
-format residing in a shared memory to an image in I420 residing in a new shared
-memory suitable for subsequent video compression.
+This repository provides source code to transform an input image in I420 format
+residing in shared memory to two images in I420 and ARGB format residing two new
+shared memory areas suitable for subsequent video processing like compression.
 
 [![License: GPLv3](https://img.shields.io/badge/license-GPL--3-blue.svg
 )](https://www.gnu.org/licenses/gpl-3.0.txt)
@@ -33,32 +33,39 @@ section to your `docker-compose.yml`:
 ```yml
 version: '2' # Must be present exactly once at the beginning of the docker-compose.yml file
 services:    # Must be present exactly once at the beginning of the docker-compose.yml file
-    argb2i420:
-        image: chalmersrevere/argb2i420-multi:v0.0.1
+    i420toolbox:
+        image: chalmersrevere/i420toolbox-multi:v0.0.1
         restart: on-failure
         ipc: "host"
         volumes:
         - /tmp:/tmp
         environment:
         - DISPLAY=${DISPLAY}
-        command: "--in=img.argb --width=640 --height=480 --argb --out=imgout.i420"
+        command: "--in=video0.i420 --in.width=640 --in.height=480 --flip --out=imgout.i420"
 ```
 
-As this microservice is connecting to an existing shared memory to read the (A)RGB/(A)BGR
-image for transform it into a new shared memory area using SysV IPC, the `docker-compose.yml`
+As this microservice is connecting to an existing shared memory to read the I420
+image to transform it into two new shared memory areas using SysV IPC, the `docker-compose.yml`
 file specifies the use of `ipc:host`. The folder `/tmp` is shared into the Docker
 container to provide tokens describing the shared memory areas.
 The parameters to the application are:
 
-* `--in`: Name of the shared memory area containing the (A)RBG/(A)BGR image
+        std::cerr << "         --in:        name of the shared memory area containing the I420 image" << std::endl;
+        std::cerr << "         --out:       name of the shared memory area to be created for the I420 image" << std::endl;
+        std::cerr << "         --out.argb:  name of the shared memory area to be created for the ARGB image (default: value from --out + '.argb')" << std::endl;
+        std::cerr << "         --in.width:  width of the input image" << std::endl;
+        std::cerr << "         --in.height: height of the input image" << std::endl;
+        std::cerr << "         --flip:      rotate image by 180 degrees" << std::endl;
+        std::cerr << "         --verbose:   display output image" << std::endl;
+
+
+* `--in`: Name of the shared memory area containing the I420 image
 * `--out`: Name of the shared memory area to be created for the I420 image
-* `--width`: Width of the input image
-* `--height`: Height of the input image
-* `--argb`: Format of the input image (choose exactly one!)
-* `--rgb`: Format of the input image (choose exactly one!)
-* `--abgr`: Format of the input image (choose exactly one!)
-* `--bgr`: Format of the input image (choose exactly one!)
-* `--verbose`: Display decoding information and render the image to screen (requires X11; run `xhost +` to allow access to you X11 server)
+* `--out`: Name of the shared memory area to be created for the ARGB image
+* `--in.width`: Width of the input image
+* `--in.height`: Height of the input image
+* `--flip`: Rotate the input image by 180 degrees
+* `--verbose`: Display the resulting output image to screen (requires X11; run `xhost +` to allow access to you X11 server)
 
 
 ## Build from sources on the example of Ubuntu 16.04 LTS
