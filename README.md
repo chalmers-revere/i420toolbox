@@ -44,20 +44,16 @@ services:    # Must be present exactly once at the beginning of the docker-compo
         command: "--in=video0.i420 --in.width=640 --in.height=480 --flip --out=imgout.i420"
 ```
 
+Command for commandline to display the resulting image after operations:
+```
+docker run --rm -ti --init --ipc=host -v /tmp:/tmp -e DISPLAY=$DISPLAY i420toolbox --in=video0.i420 --out=image.i420 --in.width=640 --in.height=480 --crop.x=160 --crop.y=120 --crop.width=320 --crop.height=240 --flip --scale.width=640 --scale.height=480 --verbose
+```
+
 As this microservice is connecting to an existing shared memory to read the I420
 image to transform it into two new shared memory areas using SysV IPC, the `docker-compose.yml`
 file specifies the use of `ipc:host`. The folder `/tmp` is shared into the Docker
 container to provide tokens describing the shared memory areas.
 The parameters to the application are:
-
-        std::cerr << "         --in:        name of the shared memory area containing the I420 image
-        std::cerr << "         --out:       name of the shared memory area to be created for the I420 image
-        std::cerr << "         --out.argb:  name of the shared memory area to be created for the ARGB image (default: value from --out + '.argb')
-        std::cerr << "         --in.width:  width of the input image
-        std::cerr << "         --in.height: height of the input image
-        std::cerr << "         --flip:      rotate image by 180 degrees
-        std::cerr << "         --verbose:   display output image
-
 
 * `--in`: Name of the shared memory area containing the I420 image
 * `--out`: Name of the shared memory area to be created for the I420 image
@@ -69,6 +65,8 @@ The parameters to the application are:
 * `--crop.y`: Crop this area from the input image (y for top left)
 * `--crop.width`: Crop this area from the input image (width)
 * `--crop.height`: Crop this area from the input image (height)
+* `--scale.width`: Scale the result from flipping/cropping (width)
+* `--scale.height`: Scale the result from flipping/cropping (height)
 * `--verbose`: Display the resulting output image to screen (requires X11; run `xhost +` to allow access to you X11 server)
 
 
