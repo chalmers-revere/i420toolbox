@@ -65,8 +65,8 @@ int32_t main(int32_t argc, char **argv) {
     else {
         const std::string IN{commandlineArguments["in"]};
         const std::string OUT{commandlineArguments["out"]};
-        std::string OUT_ARGB{(commandlineArguments.count("out.argb") != 0) ? commandlineArguments["out.argb"] : (OUT + ".argb")};
-        std::string OUT_SCALE{(OUT + ".scale")};
+        const std::string OUT_ARGB{(commandlineArguments.count("out.argb") != 0) ? commandlineArguments["out.argb"] : (OUT + ".argb")};
+        const std::string OUT_SCALE{(OUT + ".scale")};
         const uint32_t IN_WIDTH{static_cast<uint32_t>(std::stoi(commandlineArguments["in.width"]))};
         const uint32_t IN_HEIGHT{static_cast<uint32_t>(std::stoi(commandlineArguments["in.height"]))};
         const uint32_t CROP_X{(commandlineArguments.count("crop.x") != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["crop.x"])) : 0u};
@@ -80,11 +80,13 @@ int32_t main(int32_t argc, char **argv) {
         const uint32_t ROTATE{(commandlineArguments.count("flip") != 0) ? 180u : 0u};
         const bool VERBOSE{commandlineArguments.count("verbose") != 0};
 
+        const uint32_t TEMP_WIDTH{(0 < SCALE_WIDTH) ? OUT_WIDTH : 0};
+        const uint32_t TEMP_HEIGHT{(0 < SCALE_HEIGHT) ? OUT_HEIGHT : 0};
         const uint32_t FINAL_WIDTH{(0 < SCALE_WIDTH) ? SCALE_WIDTH : OUT_WIDTH};
         const uint32_t FINAL_HEIGHT{(0 < SCALE_HEIGHT) ? SCALE_HEIGHT : OUT_HEIGHT};
 
         std::unique_ptr<cluon::SharedMemory> sharedMemoryIN;
-        std::unique_ptr<cluon::SharedMemory> sharedMemoryOUT_SCALE;
+        std::unique_ptr<cluon::SharedMemory> sharedMemoryTEMP_I420;
         std::unique_ptr<cluon::SharedMemory> sharedMemoryOUT_I420;
         std::unique_ptr<cluon::SharedMemory> sharedMemoryOUT_ARGB;
 
@@ -96,6 +98,17 @@ int32_t main(int32_t argc, char **argv) {
             std::cerr << "[i420toolbox]: Failed to attach to shared memory '" << IN << "'." << std::endl;
             return retCode;
         }
+
+        if ( 0 < (TEMP_WIDTH * TEMP_HEIGHT) ) {
+            sharedMemoryTEMP_I420.reset(new cluon::SharedMemory{OUT_SCALE, TEMP_WIDTH * TEMP_HEIGHT * 3/2});
+            if (sharedMemoryTEMP_I420 && sharedMemoryTEMP_I420->valid()) {
+                std::clog << "[i420toolbox]: Created internal shared memory " << OUT_SCALE << " (" << sharedMemoryTEMP_I420->size() << " bytes) for an I420 image (width = " << TEMP_WIDTH << ", height = " << TEMP_HEIGHT << ")." << std::endl;
+            }
+            else {
+                std::cerr << "[i420toolbox]: Failed to create shared memory for internal image (I420)." << std::endl;
+                return retCode;
+            }
+        } 
 
         sharedMemoryOUT_I420.reset(new cluon::SharedMemory{OUT, FINAL_WIDTH * FINAL_HEIGHT * 3/2});
         if (sharedMemoryOUT_I420 && sharedMemoryOUT_I420->valid()) {
