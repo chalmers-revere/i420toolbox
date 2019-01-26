@@ -80,7 +80,11 @@ int32_t main(int32_t argc, char **argv) {
         const uint32_t ROTATE{(commandlineArguments.count("flip") != 0) ? 180u : 0u};
         const bool VERBOSE{commandlineArguments.count("verbose") != 0};
 
-        std::unique_ptr<cluon::SharedMemory> sharedMemoryIN(new cluon::SharedMemory{IN});
+        std::unique_ptr<cluon::SharedMemory> sharedMemoryIN;
+        std::unique_ptr<cluon::SharedMemory> sharedMemoryOUT_I420;
+        std::unique_ptr<cluon::SharedMemory> sharedMemoryOUT_ARGB;
+
+        sharedMemoryIN.reset(new cluon::SharedMemory{IN});
         if (sharedMemoryIN && sharedMemoryIN->valid()) {
             std::clog << "[i420toolbox]: Attached to '" << sharedMemoryIN->name() << "' (" << sharedMemoryIN->size() << " bytes)." << std::endl;
         }
@@ -89,7 +93,7 @@ int32_t main(int32_t argc, char **argv) {
             return retCode;
         }
 
-        std::unique_ptr<cluon::SharedMemory> sharedMemoryOUT_I420(new cluon::SharedMemory{OUT, OUT_WIDTH * OUT_HEIGHT * 3/2});
+        sharedMemoryOUT_I420.reset(new cluon::SharedMemory{OUT, OUT_WIDTH * OUT_HEIGHT * 3/2});
         if (sharedMemoryOUT_I420 && sharedMemoryOUT_I420->valid()) {
             std::clog << "[i420toolbox]: Created shared memory " << OUT << " (" << sharedMemoryOUT_I420->size() << " bytes) for an I420 image (width = " << OUT_WIDTH << ", height = " << OUT_HEIGHT << ")." << std::endl;
         }
@@ -98,7 +102,7 @@ int32_t main(int32_t argc, char **argv) {
             return retCode;
         }
 
-        std::unique_ptr<cluon::SharedMemory> sharedMemoryOUT_ARGB(new cluon::SharedMemory{OUT_ARGB, OUT_WIDTH * OUT_HEIGHT * 4});
+        sharedMemoryOUT_ARGB.reset(new cluon::SharedMemory{OUT_ARGB, OUT_WIDTH * OUT_HEIGHT * 4});
         if (sharedMemoryOUT_ARGB && sharedMemoryOUT_ARGB->valid()) {
             std::clog << "[i420toolbox]: Created shared memory " << OUT_ARGB << " (" << sharedMemoryOUT_ARGB->size() << " bytes) for an ARGB image (width = " << OUT_WIDTH << ", height = " << OUT_HEIGHT << ")." << std::endl;
         }
