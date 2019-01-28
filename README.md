@@ -34,7 +34,7 @@ section to your `docker-compose.yml`:
 version: '2' # Must be present exactly once at the beginning of the docker-compose.yml file
 services:    # Must be present exactly once at the beginning of the docker-compose.yml file
     i420toolbox:
-        image: chalmersrevere/i420toolbox-multi:v0.0.1
+        image: chalmersrevere/i420toolbox-multi:v0.0.2
         restart: on-failure
         ipc: "host"
         volumes:
@@ -46,7 +46,7 @@ services:    # Must be present exactly once at the beginning of the docker-compo
 
 Command for commandline to display the resulting image after operations:
 ```
-docker run --rm -ti --init --ipc=host -v /tmp:/tmp -e DISPLAY=$DISPLAY i420toolbox --in=video0.i420 --out=image.i420 --in.width=640 --in.height=480 --crop.x=160 --crop.y=120 --crop.width=320 --crop.height=240 --flip --scale.width=640 --scale.height=480 --verbose
+docker run --rm -ti --init --ipc=host -v /tmp:/tmp -e DISPLAY=$DISPLAY i420toolbox:v0.0.2 --in=video0.i420 --out=image.i420 --in.width=640 --in.height=480 --crop.x=160 --crop.y=120 --crop.width=320 --crop.height=240 --flip --scale.width=640 --scale.height=480 --verbose
 ```
 
 As this microservice is connecting to an existing shared memory to read the I420
