@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018  Christian Berger
+ * Copyright (C) 2019  Christian Berger
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <vector>
 
 int32_t main(int32_t argc, char **argv) {
     int32_t retCode{1};
@@ -86,13 +87,15 @@ int32_t main(int32_t argc, char **argv) {
         const uint32_t FINAL_HEIGHT{(0 < SCALE_HEIGHT) ? SCALE_HEIGHT : OUT_HEIGHT};
 
         std::unique_ptr<cluon::SharedMemory> sharedMemoryIN;
-        std::unique_ptr<cluon::SharedMemory> sharedMemoryTEMP_I420;
+        std::vector<char> inputImageBuffer;
+        std::vector<char> tempImageBuffer;
         std::unique_ptr<cluon::SharedMemory> sharedMemoryOUT_I420;
         std::unique_ptr<cluon::SharedMemory> sharedMemoryOUT_ARGB;
 
         sharedMemoryIN.reset(new cluon::SharedMemory{IN});
         if (sharedMemoryIN && sharedMemoryIN->valid()) {
             std::clog << "[i420toolbox]: Attached to '" << sharedMemoryIN->name() << "' (" << sharedMemoryIN->size() << " bytes)." << std::endl;
+            inputImageBuffer.reserve(sharedMemoryIN->size());
         }
         else {
             std::cerr << "[i420toolbox]: Failed to attach to shared memory '" << IN << "'." << std::endl;
@@ -100,14 +103,7 @@ int32_t main(int32_t argc, char **argv) {
         }
 
         if ( 0 < (TEMP_WIDTH * TEMP_HEIGHT) ) {
-            sharedMemoryTEMP_I420.reset(new cluon::SharedMemory{OUT_SCALE, TEMP_WIDTH * TEMP_HEIGHT * 3/2});
-            if (sharedMemoryTEMP_I420 && sharedMemoryTEMP_I420->valid()) {
-                std::clog << "[i420toolbox]: Created internal shared memory " << OUT_SCALE << " (" << sharedMemoryTEMP_I420->size() << " bytes) for an I420 image (width = " << TEMP_WIDTH << ", height = " << TEMP_HEIGHT << ")." << std::endl;
-            }
-            else {
-                std::cerr << "[i420toolbox]: Failed to create shared memory for internal image (I420)." << std::endl;
-                return retCode;
-            }
+            tempImageBuffer.reserve(TEMP_WIDTH * TEMP_HEIGHT * 3/2);
         } 
 
         sharedMemoryOUT_I420.reset(new cluon::SharedMemory{OUT, FINAL_WIDTH * FINAL_HEIGHT * 3/2});
@@ -151,61 +147,61 @@ int32_t main(int32_t argc, char **argv) {
                 // Read notification timestamp.
                 auto r = sharedMemoryIN->getTimeStamp();
                 sampleTimeStamp = (r.first ? r.second : sampleTimeStamp);
+                std::memcpy(inputImageBuffer.data(), reinterpret_cast<uint8_t*>(sharedMemoryIN->data()), sharedMemoryIN->size());
+            }
+            sharedMemoryIN->unlock();
 
-                sharedMemoryOUT_I420->lock();
-                sharedMemoryOUT_I420->setTimeStamp(sampleTimeStamp);
-                {
-                    if ( 0 < (TEMP_WIDTH * TEMP_HEIGHT) ) {
-                        // If the image shall be scaled, transform the flipping/cropping operation first and then, render the resulting scaled image into the output area.
-                        sharedMemoryTEMP_I420->lock();
-                        libyuv::ConvertToI420(reinterpret_cast<uint8_t*>(sharedMemoryIN->data()), IN_WIDTH * IN_HEIGHT * 3/2 /* 3/2*IN_WIDTH for I420*/,
-                                              reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()), TEMP_WIDTH,
-                                              reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()+(TEMP_WIDTH * TEMP_HEIGHT)), TEMP_WIDTH/2,
-                                              reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()+(TEMP_WIDTH * TEMP_HEIGHT + ((TEMP_WIDTH * TEMP_HEIGHT) >> 2))), TEMP_WIDTH/2,
-                                              CROP_X, CROP_Y,
-                                              IN_WIDTH, IN_HEIGHT,
-                                              CROP_WIDTH, CROP_HEIGHT,
-                                              static_cast<libyuv::RotationMode>(ROTATE), FOURCC('I', '4', '2', '0'));
+            sharedMemoryOUT_I420->lock();
+            sharedMemoryOUT_I420->setTimeStamp(sampleTimeStamp);
+            {
+                if ( 0 < (TEMP_WIDTH * TEMP_HEIGHT) ) {
+                    // If the image shall be scaled, transform the flipping/cropping operation first and then, render the resulting scaled image into the output area.
+                    libyuv::ConvertToI420(reinterpret_cast<uint8_t*>(inputImageBuffer.data()), IN_WIDTH * IN_HEIGHT * 3/2 /* 3/2*IN_WIDTH for I420*/,
+                                          reinterpret_cast<uint8_t*>(tempImageBuffer.data()), TEMP_WIDTH,
+                                          reinterpret_cast<uint8_t*>(tempImageBuffer.data()+(TEMP_WIDTH * TEMP_HEIGHT)), TEMP_WIDTH/2,
+                                          reinterpret_cast<uint8_t*>(tempImageBuffer.data()+(TEMP_WIDTH * TEMP_HEIGHT + ((TEMP_WIDTH * TEMP_HEIGHT) >> 2))), TEMP_WIDTH/2,
+                                          CROP_X, CROP_Y,
+                                          IN_WIDTH, IN_HEIGHT,
+                                          CROP_WIDTH, CROP_HEIGHT,
+                                          static_cast<libyuv::RotationMode>(ROTATE), FOURCC('I', '4', '2', '0'));
 
-                        libyuv::I420Scale(reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()), TEMP_WIDTH,
-                                          reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()+(TEMP_WIDTH * TEMP_HEIGHT)), TEMP_WIDTH/2,
-                                          reinterpret_cast<uint8_t*>(sharedMemoryTEMP_I420->data()+(TEMP_WIDTH * TEMP_HEIGHT + ((TEMP_WIDTH * TEMP_HEIGHT) >> 2))), TEMP_WIDTH/2,
-                                          TEMP_WIDTH, TEMP_HEIGHT,
+                    libyuv::I420Scale(reinterpret_cast<uint8_t*>(tempImageBuffer.data()), TEMP_WIDTH,
+                                      reinterpret_cast<uint8_t*>(tempImageBuffer.data()+(TEMP_WIDTH * TEMP_HEIGHT)), TEMP_WIDTH/2,
+                                      reinterpret_cast<uint8_t*>(tempImageBuffer.data()+(TEMP_WIDTH * TEMP_HEIGHT + ((TEMP_WIDTH * TEMP_HEIGHT) >> 2))), TEMP_WIDTH/2,
+                                      TEMP_WIDTH, TEMP_HEIGHT,
+                                      reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()), FINAL_WIDTH,
+                                      reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT)), FINAL_WIDTH/2,
+                                      reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT + ((FINAL_WIDTH * FINAL_HEIGHT) >> 2))), FINAL_WIDTH/2,
+                                      FINAL_WIDTH, FINAL_HEIGHT,
+                                      libyuv::kFilterNone);
+                }
+                else {
+                    libyuv::ConvertToI420(reinterpret_cast<uint8_t*>(inputImageBuffer.data()), IN_WIDTH * IN_HEIGHT * 3/2 /* 3/2*IN_WIDTH for I420*/,
                                           reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()), FINAL_WIDTH,
                                           reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT)), FINAL_WIDTH/2,
                                           reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT + ((FINAL_WIDTH * FINAL_HEIGHT) >> 2))), FINAL_WIDTH/2,
-                                          FINAL_WIDTH, FINAL_HEIGHT,
-                                          libyuv::kFilterNone);
-                        sharedMemoryTEMP_I420->unlock();
-                    }
-                    else {
-                        libyuv::ConvertToI420(reinterpret_cast<uint8_t*>(sharedMemoryIN->data()), IN_WIDTH * IN_HEIGHT * 3/2 /* 3/2*IN_WIDTH for I420*/,
-                                              reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()), FINAL_WIDTH,
-                                              reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT)), FINAL_WIDTH/2,
-                                              reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT + ((FINAL_WIDTH * FINAL_HEIGHT) >> 2))), FINAL_WIDTH/2,
-                                              CROP_X, CROP_Y,
-                                              IN_WIDTH, IN_HEIGHT,
-                                              CROP_WIDTH, CROP_HEIGHT,
-                                              static_cast<libyuv::RotationMode>(ROTATE), FOURCC('I', '4', '2', '0'));
-                    }
-
-                    sharedMemoryOUT_ARGB->lock();
-                    sharedMemoryOUT_ARGB->setTimeStamp(sampleTimeStamp);
-                    {
-                        libyuv::I420ToARGB(reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()), FINAL_WIDTH,
-                                           reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT)), FINAL_WIDTH/2,
-                                           reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT + ((FINAL_WIDTH * FINAL_HEIGHT) >> 2))), FINAL_WIDTH/2,
-                                           reinterpret_cast<uint8_t*>(sharedMemoryOUT_ARGB->data()), FINAL_WIDTH * 4, FINAL_WIDTH, FINAL_HEIGHT);
-
-                        if (VERBOSE) {
-                            XPutImage(display, window, DefaultGC(display, 0), ximage, 0, 0, 0, 0, FINAL_WIDTH, FINAL_HEIGHT);
-                        }
-                    }
-                    sharedMemoryOUT_ARGB->unlock();
+                                          CROP_X, CROP_Y,
+                                          IN_WIDTH, IN_HEIGHT,
+                                          CROP_WIDTH, CROP_HEIGHT,
+                                          static_cast<libyuv::RotationMode>(ROTATE), FOURCC('I', '4', '2', '0'));
                 }
-                sharedMemoryOUT_I420->unlock();
+
+                sharedMemoryOUT_ARGB->lock();
+                sharedMemoryOUT_ARGB->setTimeStamp(sampleTimeStamp);
+                {
+                    libyuv::I420ToARGB(reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()), FINAL_WIDTH,
+                                       reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT)), FINAL_WIDTH/2,
+                                       reinterpret_cast<uint8_t*>(sharedMemoryOUT_I420->data()+(FINAL_WIDTH * FINAL_HEIGHT + ((FINAL_WIDTH * FINAL_HEIGHT) >> 2))), FINAL_WIDTH/2,
+                                       reinterpret_cast<uint8_t*>(sharedMemoryOUT_ARGB->data()), FINAL_WIDTH * 4, FINAL_WIDTH, FINAL_HEIGHT);
+
+                    if (VERBOSE) {
+                        XPutImage(display, window, DefaultGC(display, 0), ximage, 0, 0, 0, 0, FINAL_WIDTH, FINAL_HEIGHT);
+                    }
+                }
+                sharedMemoryOUT_ARGB->unlock();
             }
-            sharedMemoryIN->unlock();
+            sharedMemoryOUT_I420->unlock();
+
 
             // Notify listeners.
             sharedMemoryOUT_I420->notifyAll();
